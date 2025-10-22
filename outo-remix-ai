@@ -1,0 +1,197 @@
+# outo-remix-ai
+Ai gerentore 
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+
+const rootElement = document.getElementById('root');
+if (!rootElement) {
+  throw new Error("Could not find root element to mount to");
+}
+
+const root = ReactDOM.createRoot(rootElement);
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Auto Remix AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      /* Custom scrollbar for a better dark-mode aesthetic */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #1f2937; /* bg-gray-800 */
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #4f46e5; /* bg-indigo-600 */
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #6366f1; /* bg-indigo-500 */
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.26.0"
+  }
+}
+</script>
+</head>
+  <body class="bg-gray-900">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
+import React, { useState, useCallback } from 'react';
+import { RemixStyle } from './types';
+import { REMIX_STYLES } from './constants';
+import { generateRemixDescription } from './services/geminiService';
+import FileUpload from './components/FileUpload';
+import GenreSelector from './components/GenreSelector';
+import Loader from './components/Loader';
+import RemixResult from './components/RemixResult';
+import { Header } from './components/Header';
+import { Footer } from './components/Footer';
+
+const App: React.FC = () => {
+  const [file, setFile] = useState<File | null>(null);
+  const [genre, setGenre] = useState<RemixStyle>(RemixStyle.PUNJABI_DHOL);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [remixDescription, setRemixDescription] = useState<string | null>(null);
+  const [fileURL, setFileURL] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleFileChange = (selectedFile: File | null) => {
+    setFile(selectedFile);
+    if (fileURL) {
+      URL.revokeObjectURL(fileURL);
+      setFileURL(null);
+    }
+    setError(null);
+  };
+
+  const handleGenreChange = (selectedGenre: RemixStyle) => {
+    setGenre(selectedGenre);
+  };
+
+  const handleRemix = useCallback(async () => {
+    if (!file) {
+      setError('Please upload an audio file first.');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    setRemixDescription(null);
+    if (fileURL) URL.revokeObjectURL(fileURL);
+
+
+    try {
+      const description = await generateRemixDescription(genre);
+      setRemixDescription(description);
+      setFileURL(URL.createObjectURL(file));
+    } catch (e) {
+      console.error(e);
+      setError('Failed to generate remix. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [file, genre, fileURL]);
+  
+  const handleReset = () => {
+    setFile(null);
+    setGenre(RemixStyle.PUNJABI_DHOL);
+    setIsLoading(false);
+    setRemixDescription(null);
+    setError(null);
+    if (fileURL) {
+      URL.revokeObjectURL(fileURL);
+      setFileURL(null);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-900 text-white font-sans flex flex-col">
+      <Header />
+      <main className="flex-grow flex items-center justify-center p-4">
+        <div className="w-full max-w-2xl bg-gray-800/50 backdrop-blur-sm rounded-2xl shadow-2xl shadow-indigo-500/10 border border-gray-700 overflow-hidden transition-all duration-500">
+          {isLoading ? (
+            <Loader />
+          ) : remixDescription && fileURL ? (
+            <RemixResult 
+              description={remixDescription} 
+              audioSrc={fileURL} 
+              genre={REMIX_STYLES.find(s => s.value === genre)?.label || 'Remix'}
+              fileName={file?.name || 'remixed_track.mp3'}
+              onReset={handleReset} 
+            />
+          ) : (
+            <div className="p-8 space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold text-indigo-400">Apna Gaana Upload Karo</h2>
+                <p className="text-gray-400 mt-1">Remix shuru karne ke liye audio file select karein.</p>
+              </div>
+              <FileUpload onFileChange={handleFileChange} file={file} />
+              
+              <div>
+                <h2 className="text-2xl font-bold text-indigo-400">Remix Ka Style Chuno</h2>
+                <p className="text-gray-400 mt-1">Apne naye track ke liye vibe select karein.</p>
+              </div>
+              <GenreSelector selectedGenre={genre} onGenreChange={handleGenreChange} />
+
+              {error && <p className="text-red-400 text-center animate-pulse">{error}</p>}
+              
+              <div className="pt-4">
+                <button
+                  onClick={handleRemix}
+                  disabled={!file}
+                  className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-4 px-4 rounded-lg text-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-indigo-500/50 flex items-center justify-center space-x-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.858 5.858a9 9 0 0112.728 0m-12.728 0a9 9 0 010 12.728m-2.828-9.9a5 5 0 017.072 0" /></svg>
+                  <span>DJ Remix Banao!</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+      <Footer />
+    </div>
+  );
+};
+
+export default App;
+{
+  "name": "Auto Remix AI",
+  "description": "Ek AI-powered app jo aapke kisi bhi gaane ko Dhol, Bass, aur desi tadka ke saath ek dhamakedaar DJ remix mein badal deta hai. Apna track upload karein, style chunein, aur AI se apne naye remix ka ek shandaar description paayein.",
+  "requestFramePermissions": []
+}
+export enum RemixStyle {
+  PUNJABI_DHOL = 'Punjabi Wedding Dhol Mix',
+  BOLLYWOOD_BASS = 'Bollywood Bass Boosted',
+  MUMBAI_TAPORI = 'Mumbai Tapori Mix',
+  BHOJPURI_TADKA = 'Bhojpuri Desi Tadka',
+  RETRO_REMIX = 'Retro Bollywood Remix',
+}
+import { RemixStyle } from './types';
+
+export const REMIX_STYLES: { value: RemixStyle; label: string }[] = [
+  { value: RemixStyle.PUNJABI_DHOL, label: 'Punjabi Wedding Dhol Mix' },
+  { value: RemixStyle.BOLLYWOOD_BASS, label: 'Bollywood Bass Boosted' },
+  { value: RemixStyle.MUMBAI_TAPORI, label: 'Mumbai Tapori Mix' },
+  { value: RemixStyle.BHOJPURI_TADKA, label: 'Bhojpuri Desi Tadka' },
+  { value: RemixStyle.RETRO_REMIX, label: 'Retro Bollywood Remix' },
+];
