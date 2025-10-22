@@ -1,0 +1,25 @@
+
+import { GoogleGenAI } from "@google/genai";
+import { RemixStyle } from '../types';
+
+if (!process.env.API_KEY) {
+  throw new Error("API_KEY environment variable not set");
+}
+
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+export const generateRemixDescription = async (genre: RemixStyle): Promise<string> => {
+  try {
+    const prompt = `Aap ek world-class Indian DJ hain. Ek user apne ek gaane ko '${genre}' style mein remix karwana chahta hai. Is naye remix ke liye ek dhamakedaar aur exciting description taiyar karein. Beat mein kya badlav kiye gaye hain, kaun se naye instruments ya sounds daale gaye hain (jaise kick, dhol, heavy bass, synth leads, vocal chops), remix ki energy kaisi hai, aur ye gaana kis mahaul ke liye perfect hai (jaise shaadi, club, ya late-night drive), ispar focus karein. Ise ek official track release announcement jaisa banayein. Output ko saaf-suthre markdown format mein dein, jisme ek main title, ek chhota paragraph, aur fir remix ke key features ke liye bullet points hon. Description mein Hindi aur English (Hinglish) ka mix istemal karein jaisa DJs karte hain.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+    });
+    
+    return response.text;
+  } catch (error) {
+    console.error("Error generating content from Gemini:", error);
+    throw new Error("Failed to communicate with the AI model.");
+  }
+};
